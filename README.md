@@ -74,6 +74,7 @@ smart-finance-assistant/
 
 │ └── .env
 │
+
 └── README.md
 
 
