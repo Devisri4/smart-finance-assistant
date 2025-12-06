@@ -50,17 +50,28 @@ A full-stack **MERN-based personal finance management application** that helps u
 smart-finance-assistant/
 │
 ├── client/ # React frontend
+
 │ ├── src/
+
 │ │ ├── api/ # Axios API config
+
 │ │ ├── components/
+
 │ │ ├── pages/
+
 │ │ └── App.js
+
 │
 ├── server/ # Node.js backend
+
 │ ├── models/
+
 │ ├── middlewares/
+
 │ ├── routes/
+
 │ ├── index.js
+
 │ └── .env
 │
 └── README.md
