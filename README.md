@@ -73,9 +73,8 @@ smart-finance-assistant/
 │ ├── index.js
 
 │ └── .env
-│
 
-└── README.md
+│ └── README.md
 
 
 🧠 Key Learnings
