@@ -19,3 +19,11 @@ yarn-error.log*
 # OS files
 .DS_Store
 Thumbs.db
+
+# Java build output
+target/
+
+# IDE files
+.idea/
+*.iml
+.vscode/
