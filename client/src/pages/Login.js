@@ -1,72 +1,104 @@
-// client/src/pages/Login.js
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
-import api from "../api/api";
+import { Link, useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+import { FaUserAstronaut } from "react-icons/fa";
+import api, { errorMessage } from "../api/api";
+import { setToken } from "../auth";
+import AuthLayout from "../components/AuthLayout";
 
 function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [busy, setBusy] = useState(null); // "login", "demo" or null
   const navigate = useNavigate();
+
+  const finish = (token, message) => {
+    setToken(token);
+    toast.success(message);
+    navigate("/dashboard", { replace: true });
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (!email || !password) {
+    if (!email.trim() || !password) {
       toast.error("Email and password are required");
       return;
     }
-
     try {
-      setIsSubmitting(true);
-      const res = await api.post("/login", { email, password });
-      localStorage.setItem("token", res.data.token);
-      toast.success("Logged in successfully");
-      navigate("/dashboard");
+      setBusy("login");
+      const res = await api.post("/login", { email: email.trim(), password });
+      finish(res.data.token, "Welcome back!");
     } catch (err) {
-      const msg =
-        err?.response?.data?.message || "Failed to login";
-      toast.error(msg);
-    } finally {
-      setIsSubmitting(false);
+      toast.error(errorMessage(err, "Failed to log in"));
+      setBusy(null);
+    }
+  };
+
+  const handleDemo = async () => {
+    try {
+      setBusy("demo");
+      const res = await api.post("/demo-login");
+      finish(res.data.token, "Welcome to the demo!");
+    } catch (err) {
+      toast.error(errorMessage(err, "Could not start the demo. Please try again."));
+      setBusy(null);
     }
   };
 
   return (
-    <div className="container">
-      <div className="login-box">
-        <h2>Smart Finance Assistant</h2>
-        <p className="tagline">Track. Plan. Grow your money.</p>
+    <AuthLayout>
+      <h2>Log in</h2>
+      <p className="muted">Good to see you again.</p>
 
-        <form onSubmit={handleSubmit}>
+      <form onSubmit={handleSubmit} className="form">
+        <label className="field">
+          <span>Email</span>
           <input
             type="email"
-            placeholder="Email"
+            autoComplete="email"
+            placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-
+        </label>
+        <label className="field">
+          <span>Password</span>
           <input
             type="password"
-            placeholder="Password"
+            autoComplete="current-password"
+            placeholder="Your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+        </label>
+        <button type="submit" className="btn btn-primary btn-block" disabled={busy !== null}>
+          {busy === "login" ? "Logging in…" : "Log in"}
+        </button>
+      </form>
 
-          <button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? "Logging in..." : "Login"}
-          </button>
-        </form>
-
-        <p className="tagline" style={{ marginTop: 12 }}>
-          Don&apos;t have an account?{" "}
-          <Link to="/signup" style={{ color: "#60a5fa" }}>
-            Sign up
-          </Link>
-        </p>
+      <div className="divider">
+        <span>or</span>
       </div>
-    </div>
+
+      <button
+        type="button"
+        className="btn btn-secondary btn-block"
+        onClick={handleDemo}
+        disabled={busy !== null}
+      >
+        <FaUserAstronaut aria-hidden="true" />
+        {busy === "demo" ? "Preparing the demo…" : "Try the demo, no sign-up needed"}
+      </button>
+      {busy && (
+        <p className="muted small center">
+          The free server may need up to a minute to wake up.
+        </p>
+      )}
+
+      <p className="muted center switch-link">
+        New here? <Link to="/signup">Create an account</Link>
+      </p>
+    </AuthLayout>
   );
 }
 

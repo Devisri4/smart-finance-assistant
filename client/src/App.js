@@ -1,43 +1,43 @@
 import "./App.css";
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
+import { getToken } from "./auth";
+import Layout from "./components/Layout";
+import ProtectedRoute from "./components/ProtectedRoute";
+import Budgets from "./pages/Budgets";
+import Dashboard from "./pages/Dashboard";
+import Expenses from "./pages/Expenses";
+import Insights from "./pages/Insights";
 import Login from "./pages/Login";
 import Signup from "./pages/Signup";
-import Dashboard from "./pages/Dashboard";
-import ProtectedRoute from "./components/ProtectedRoute";
+
+const Home = () => <Navigate to={getToken() ? "/dashboard" : "/login"} replace />;
 
 function App() {
-  const token = localStorage.getItem("token");
-
   return (
     <>
-      <ToastContainer position="top-center" />
+      <ToastContainer position="top-center" autoClose={2500} theme="colored" />
 
       <Routes>
-        <Route
-          path="/"
-          element={
-            token ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-
-        <Route path="/login" element={<Login />} />
+        <Route path="/login" element={getToken() ? <Navigate to="/dashboard" replace /> : <Login />} />
         <Route path="/signup" element={<Signup />} />
 
         <Route
-          path="/dashboard"
           element={
             <ProtectedRoute>
-              <Dashboard />
+              <Layout />
             </ProtectedRoute>
           }
-        />
+        >
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/expenses" element={<Expenses />} />
+          <Route path="/budgets" element={<Budgets />} />
+          <Route path="/insights" element={<Insights />} />
+        </Route>
+
+        <Route path="*" element={<Home />} />
       </Routes>
     </>
   );
