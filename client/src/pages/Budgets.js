@@ -9,7 +9,7 @@ import { formatMoney } from "../utils/format";
 
 const STATUS_TEXT = {
   OK: "On track",
-  WARNING: "Almost used up",
+  WARNING: "Almost full",
   OVER: "Over budget",
 };
 
