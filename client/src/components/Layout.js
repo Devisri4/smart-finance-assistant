@@ -5,6 +5,7 @@ import {
   FaChartPie,
   FaLightbulb,
   FaListUl,
+  FaRobot,
   FaSignOutAlt,
   FaTimes,
   FaWallet,
@@ -19,6 +20,7 @@ const NAV = [
   { to: "/expenses", label: "Expenses", Icon: FaListUl },
   { to: "/budgets", label: "Budgets", Icon: FaWallet },
   { to: "/insights", label: "Insights", Icon: FaLightbulb },
+  { to: "/assistant", label: "AI Assistant", Icon: FaRobot },
 ];
 
 function Layout() {
