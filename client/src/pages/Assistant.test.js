@@ -69,10 +69,10 @@ test("a typed question is sent and the assistant shows it is typing", async () =
   );
   render(<Assistant />);
 
-  userEvent.type(screen.getByLabelText("Message"), "Where can I save money?");
+  userEvent.type(screen.getByLabelText("Message"), "Why did my food spending go up?");
   userEvent.click(screen.getByRole("button", { name: "Send" }));
 
-  expect(screen.getByText("Where can I save money?")).toBeInTheDocument();
+  expect(screen.getByText("Why did my food spending go up?")).toBeInTheDocument();
   expect(screen.getByRole("status", { name: "Assistant is typing" })).toBeInTheDocument();
   expect(screen.getByLabelText("Message")).toHaveValue("");
 
