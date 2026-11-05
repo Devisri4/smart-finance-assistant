@@ -72,6 +72,32 @@ class InsightsServiceTest {
     }
 
     @Test
+    void suggestsBudgetsFromTheAverageOfPastFullMonths() {
+        List<Expense> expenses = List.of(
+                expense("Groceries", 3000, "Food", LocalDate.of(2026, 2, 10)),
+                expense("Groceries", 4050, "Food", LocalDate.of(2026, 1, 10)),
+                expense("Cab", 500, "Transport", LocalDate.of(2026, 1, 12)),
+                // This month and older than 3 months are ignored.
+                expense("Huge dinner", 99999, "Food", LocalDate.of(2026, 3, 1)),
+                expense("Old stuff", 99999, "Shopping", LocalDate.of(2025, 11, 1)));
+        List<Budget> budgets = List.of(new Budget("u1", "Food", 3000));
+
+        List<BudgetSuggestion> result = InsightsService.suggestBudgets(expenses, budgets, TODAY);
+
+        // Only Feb and Jan have spending, so the average is over 2 months, not 3.
+        assertThat(result).containsExactly(
+                new BudgetSuggestion("Food", 3525, 3600, 3000.0, 2),
+                new BudgetSuggestion("Transport", 250, 300, null, 2));
+    }
+
+    @Test
+    void noBudgetSuggestionsWithoutPastSpending() {
+        List<Expense> onlyThisMonth = List.of(expense("Lunch", 200, "Food", LocalDate.of(2026, 3, 2)));
+
+        assertThat(InsightsService.suggestBudgets(onlyThisMonth, List.of(), TODAY)).isEmpty();
+    }
+
+    @Test
     void emptyMonthGivesAFriendlyTip() {
         InsightsResponse result = InsightsService.build(List.of(), List.of(), TODAY);
 

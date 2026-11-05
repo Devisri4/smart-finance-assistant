@@ -30,6 +30,8 @@ import com.devisri.finance.insights.InsightsResponse.MonthTotal;
 public class InsightsService {
 
     private static final int TREND_MONTHS = 6;
+    /** How many full months back budget suggestions look. */
+    static final int SUGGESTION_MONTHS = 3;
 
     private final ExpenseRepository expenses;
     private final BudgetRepository budgets;
@@ -50,6 +52,46 @@ public class InsightsService {
         List<Expense> all = expenses.findByUserOrderByDateDescCreatedAtDesc(userId);
         return budgetStatuses(budgets.findByUserOrderByCategoryAsc(userId),
                 byCategory(inMonth(all, YearMonth.from(LocalDate.now(clock)))));
+    }
+
+    public List<BudgetSuggestion> budgetSuggestions(String userId) {
+        return suggestBudgets(expenses.findByUserOrderByDateDescCreatedAtDesc(userId),
+                budgets.findByUserOrderByCategoryAsc(userId), LocalDate.now(clock));
+    }
+
+    /**
+     * A suggested monthly limit per category: the average spent in the last few full months
+     * (only counting months that have any spending), rounded up to the next 100.
+     * Pure function, like build(), so tests can call it directly.
+     */
+    static List<BudgetSuggestion> suggestBudgets(List<Expense> all, List<Budget> userBudgets, LocalDate today) {
+        YearMonth thisMonth = YearMonth.from(today);
+        List<Map<String, Double>> months = new ArrayList<>();
+        for (int i = 1; i <= SUGGESTION_MONTHS; i++) {
+            List<Expense> inThatMonth = inMonth(all, thisMonth.minusMonths(i));
+            if (!inThatMonth.isEmpty()) {
+                months.add(byCategory(inThatMonth));
+            }
+        }
+        if (months.isEmpty()) {
+            return List.of();
+        }
+
+        Map<String, Double> totals = new LinkedHashMap<>();
+        months.forEach(m -> m.forEach((category, amount) -> totals.merge(category, amount, Double::sum)));
+        Map<String, Double> currentLimits = new LinkedHashMap<>();
+        userBudgets.forEach(b -> currentLimits.put(b.getCategory(), b.getMonthlyLimit()));
+
+        int monthCount = months.size();
+        return totals.entrySet().stream()
+                .map(e -> {
+                    double average = e.getValue() / monthCount;
+                    double suggested = Math.ceil(average / 100) * 100;
+                    return new BudgetSuggestion(e.getKey(), round(average), suggested,
+                            currentLimits.get(e.getKey()), monthCount);
+                })
+                .sorted(Comparator.comparingDouble(BudgetSuggestion::averageMonthlySpend).reversed())
+                .toList();
     }
 
     /** The real work. It has no database code, so tests can call it directly. */
