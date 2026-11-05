@@ -10,7 +10,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
@@ -28,7 +30,9 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
+import com.devisri.finance.auth.User;
 import com.devisri.finance.auth.UserRepository;
 import com.devisri.finance.budget.BudgetRepository;
 import com.devisri.finance.expense.Expense;
@@ -122,6 +126,79 @@ class AssistantApiTest {
                         .contentType(MediaType.APPLICATION_JSON).content(chatBody("   ")))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.message").value("Please type a message"));
+    }
+
+    private ResultActions send(String userId, String conversationId, String message) throws Exception {
+        return mvc.perform(post("/assistant/chat").header("Authorization", bearer(userId))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"message\":\"" + message + "\",\"conversationId\":\"" + conversationId + "\"}"));
+    }
+
+    @Test
+    void theAssistantRemembersTheConversationButNeverAcrossUsers() throws Exception {
+        List<Prompt> prompts = new ArrayList<>();
+        when(chatModel.call(any(Prompt.class))).thenAnswer(call -> {
+            prompts.add(call.getArgument(0));
+            return modelSays("Answer number " + prompts.size());
+        });
+
+        send("u-mem", "chat-1", "What did I spend on food?").andExpect(status().isOk());
+        send("u-mem", "chat-1", "And last month?").andExpect(status().isOk());
+        send("u-other", "chat-1", "Hello").andExpect(status().isOk());
+
+        // The 2nd question is sent together with the 1st question and answer...
+        assertThat(prompts.get(1).getContents()).contains("What did I spend on food?", "Answer number 1");
+        // ...but another user using the same conversation id sees none of it.
+        assertThat(prompts.get(2).getContents()).doesNotContain("What did I spend on food?", "Answer number");
+    }
+
+    @Test
+    void aBadConversationIdIsRejected() throws Exception {
+        send("u1", "../../etc", "Hi")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Invalid conversation id"));
+    }
+
+    @Test
+    void aUserIsLimitedToTenMessagesAMinute() throws Exception {
+        when(chatModel.call(any(Prompt.class))).thenReturn(modelSays("ok"));
+
+        for (int i = 0; i < 10; i++) {
+            send("u-busy", "c1", "Hi").andExpect(status().isOk());
+        }
+        send("u-busy", "c1", "Hi")
+                .andExpect(status().isTooManyRequests())
+                .andExpect(jsonPath("$.message").value(ChatRateLimits.TOO_FAST));
+        // Other users are not affected.
+        send("u-calm", "c1", "Hi").andExpect(status().isOk());
+    }
+
+    @Test
+    void demoVisitorsAreLimitedPerIpAndAFakeXForwardedForDoesNotHelp() throws Exception {
+        User demo = new User("Alex Demo", "", "demo@smartfinance.app", "hashed");
+        demo.setId("demo1");
+        demo.setDemo(true);
+        when(users.findById("demo1")).thenReturn(Optional.of(demo));
+        when(chatModel.call(any(Prompt.class))).thenReturn(modelSays("ok"));
+
+        for (int i = 0; i < 5; i++) {
+            demoMessage("203.0.113.5", null).andExpect(status().isOk());
+        }
+        demoMessage("203.0.113.5", null).andExpect(status().isTooManyRequests());
+        // Pretending to be someone else with X-Forwarded-For changes nothing.
+        demoMessage("203.0.113.5", "198.51.100.1").andExpect(status().isTooManyRequests());
+        // A different visitor of the same demo account can still chat.
+        demoMessage("203.0.113.9", null).andExpect(status().isOk());
+    }
+
+    private ResultActions demoMessage(String cloudflareIp, String fakeForwardedFor) throws Exception {
+        var request = post("/assistant/chat").header("Authorization", bearer("demo1"))
+                .header("CF-Connecting-IP", cloudflareIp)
+                .contentType(MediaType.APPLICATION_JSON).content(chatBody("Hi"));
+        if (fakeForwardedFor != null) {
+            request.header("X-Forwarded-For", fakeForwardedFor);
+        }
+        return mvc.perform(request);
     }
 
     @Test

@@ -10,6 +10,8 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
+import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -35,6 +37,7 @@ public class AssistantService {
             Rules:
             - Only talk about the logged-in user's own expenses and budgets, and get every number from the tools.
               Never guess, estimate or invent numbers. Only use numbers that appear in tool results.
+            - Earlier messages may be out of date, so call the tools again for any numbers you give.
             - For budget suggestions always call suggestBudgets and use its suggestedLimit values.
               Do not calculate budgets yourself.
             - The app only knows expenses (title, amount, category, date) and monthly budgets per category.
@@ -63,14 +66,27 @@ public class AssistantService {
     private final Clock clock;
     private final boolean configured;
 
-    public AssistantService(ChatClient.Builder builder, FinanceTools tools, Clock clock,
+    public AssistantService(ChatClient.Builder builder, FinanceTools tools, ChatMemory chatMemory, Clock clock,
                             @Value("${spring.ai.openai.api-key}") String apiKey) {
-        this.chatClient = builder.defaultTools(tools).build();
+        this.chatClient = builder
+                .defaultTools(tools)
+                // Adds the last few messages of this conversation, so follow-up questions make sense.
+                .defaultAdvisors(MessageChatMemoryAdvisor.builder(chatMemory).build())
+                .build();
         this.clock = clock;
         this.configured = apiKey != null && !apiKey.isBlank() && !NOT_CONFIGURED.equals(apiKey);
     }
 
-    public ChatReply chat(String userId, String message) {
+    /**
+     * Memory is stored per user AND per conversation. The user part comes from the login token, so
+     * even with a guessed conversation id nobody can read another account's chat. The conversation
+     * part keeps different demo visitors (who share one account) apart.
+     */
+    static String memoryKey(String userId, String conversationId) {
+        return userId + ":" + (conversationId == null || conversationId.isBlank() ? "default" : conversationId);
+    }
+
+    public ChatReply chat(String userId, String conversationId, String message) {
         if (!configured) {
             throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, NOT_SET_UP_MESSAGE);
         }
@@ -80,6 +96,7 @@ public class AssistantService {
             reply = chatClient.prompt()
                     .system(SYSTEM_PROMPT.formatted(LocalDate.now(clock)))
                     .user(message)
+                    .advisors(a -> a.param(ChatMemory.CONVERSATION_ID, memoryKey(userId, conversationId)))
                     // Given to the tools only; never sent to the model.
                     .toolContext(Map.of(FinanceTools.USER_ID, userId, FinanceTools.RESULTS, results))
                     .call()

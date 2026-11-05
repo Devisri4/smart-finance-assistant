@@ -12,6 +12,7 @@ import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.web.server.ResponseStatusException;
@@ -22,12 +23,19 @@ class AssistantServiceTest {
     void withoutAnApiKeyTheAssistantSaysItIsNotSetUpAndNeverCallsTheModel() {
         ChatModel model = mock(ChatModel.class);
         AssistantService service = new AssistantService(ChatClient.builder(model), mock(FinanceTools.class),
-                Clock.systemUTC(), AssistantService.NOT_CONFIGURED);
+                MessageWindowChatMemory.builder().build(), Clock.systemUTC(), AssistantService.NOT_CONFIGURED);
 
-        assertThatThrownBy(() -> service.chat("u1", "Hi"))
+        assertThatThrownBy(() -> service.chat("u1", null, "Hi"))
                 .isInstanceOf(ResponseStatusException.class)
                 .hasMessageContaining("isn't set up yet");
         verify(model, never()).call(any(Prompt.class));
+    }
+
+    @Test
+    void memoryIsKeptPerUserAndPerConversation() {
+        assertThat(AssistantService.memoryKey("u1", "abc")).isEqualTo("u1:abc");
+        assertThat(AssistantService.memoryKey("u1", null)).isEqualTo("u1:default");
+        assertThat(AssistantService.memoryKey("u2", "abc")).isNotEqualTo(AssistantService.memoryKey("u1", "abc"));
     }
 
     @Test
