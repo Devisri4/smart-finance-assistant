@@ -121,7 +121,7 @@ function Layout() {
           ) : error ? (
             <ErrorBox message={error} onRetry={reload} />
           ) : (
-            <Loader text="Loading your account… (the free server can take up to a minute to wake up)" />
+            <Loader text="Loading your account… (the free server can take up to 2 minutes to wake up)" />
           )}
         </main>
       </div>
