@@ -6,6 +6,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { getToken } from "./auth";
 import Layout from "./components/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
+import Assistant from "./pages/Assistant";
 import Budgets from "./pages/Budgets";
 import Dashboard from "./pages/Dashboard";
 import Expenses from "./pages/Expenses";
@@ -35,6 +36,7 @@ function App() {
           <Route path="/expenses" element={<Expenses />} />
           <Route path="/budgets" element={<Budgets />} />
           <Route path="/insights" element={<Insights />} />
+          <Route path="/assistant" element={<Assistant />} />
         </Route>
 
         <Route path="*" element={<Home />} />
