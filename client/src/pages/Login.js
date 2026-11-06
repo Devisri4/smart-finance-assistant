@@ -91,7 +91,7 @@ function Login() {
       </button>
       {busy && (
         <p className="muted small center">
-          The free server may need up to a minute to wake up.
+          The free server may need up to 2 minutes to wake up.
         </p>
       )}
 

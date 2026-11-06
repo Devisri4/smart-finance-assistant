@@ -8,7 +8,7 @@
 
 A full-stack personal finance app for tracking expenses, setting budgets and getting smart spending insights.
 
-**👉 [Live demo](https://smart-finance-assistant.vercel.app):** click **"Try the demo"** (no sign-up). The first load can take up to a minute while the free server wakes up.
+**👉 [Live demo](https://smart-finance-assistant.vercel.app):** click **"Try the demo"** (no sign-up). The first load can take up to 2 minutes while the free server wakes up.
 
 ## Features
 

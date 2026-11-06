@@ -108,7 +108,13 @@ public class InsightsService {
         double lastToDate = sum(filter(previous, e -> day(e).getDayOfMonth() <= dayOfMonth));
         Integer changePercent = lastToDate > 0 ? (int) Math.round((totalThis - lastToDate) * 100 / lastToDate) : null;
         double dailyAverage = totalThis / dayOfMonth;
-        double projected = dailyAverage * thisMonth.lengthOfMonth();
+        // Month-end forecast: what is spent so far plus what last month cost after this date. Multiplying the
+        // daily average would treat a one-off payment early in the month (rent on the 1st) as daily spending.
+        // Without last month's data the daily pace is the only guide.
+        boolean hasLastMonth = !previous.isEmpty();
+        double projected = hasLastMonth
+                ? totalThis + (totalLast - lastToDate)
+                : dailyAverage * thisMonth.lengthOfMonth();
 
         Map<String, Double> thisByCategory = byCategory(current);
         Map<String, Double> lastByCategory = byCategory(previous);
@@ -157,7 +163,9 @@ public class InsightsService {
             }
             biggestIncrease(thisByCategory, lastByCategory).ifPresent(tips::add);
             if (dayOfMonth >= 5 && dayOfMonth < thisMonth.lengthOfMonth()) {
-                tips.add("At this pace you will spend about %s by the end of the month.".formatted(money(projected)));
+                tips.add((hasLastMonth
+                        ? "If the rest of the month goes like last month, you will spend about %s in total."
+                        : "At this pace you will spend about %s by the end of the month.").formatted(money(projected)));
             }
             current.stream().max(Comparator.comparingDouble(Expense::getAmount)).ifPresent(e ->
                     tips.add("Your largest single expense this month was \"%s\" (%s)."

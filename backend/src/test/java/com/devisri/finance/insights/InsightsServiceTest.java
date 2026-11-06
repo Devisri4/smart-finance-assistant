@@ -38,8 +38,37 @@ class InsightsServiceTest {
         assertThat(result.changePercent()).isEqualTo(50);
         assertThat(result.topCategory()).isIn("Food", "Shopping");
         assertThat(result.dailyAverage()).isEqualTo(200);
-        assertThat(result.projectedMonthTotal()).isEqualTo(6200);
+        // 3000 so far + 5000 that February cost after the 15th
+        assertThat(result.projectedMonthTotal()).isEqualTo(8000);
         assertThat(result.tips()).anyMatch(t -> t.contains("50% more"));
+    }
+
+    @Test
+    void rentOnTheFirstDoesNotInflateTheMonthEndForecast() {
+        LocalDate sixthOfMarch = LocalDate.of(2026, 3, 6);
+        List<Expense> expenses = List.of(
+                expense("Rent", 15000, "Bills", LocalDate.of(2026, 3, 1)),
+                expense("Groceries", 1000, "Food", LocalDate.of(2026, 3, 4)),
+                expense("Rent", 15000, "Bills", LocalDate.of(2026, 2, 1)),
+                expense("Groceries", 1000, "Food", LocalDate.of(2026, 2, 4)),
+                expense("Groceries", 4000, "Food", LocalDate.of(2026, 2, 20)));
+
+        InsightsResponse result = InsightsService.build(expenses, List.of(), sixthOfMarch);
+
+        // The daily pace would say 16000 / 6 * 31 = 82,667. Last month's pattern gives 16000 + 4000.
+        assertThat(result.projectedMonthTotal()).isEqualTo(20000);
+        assertThat(result.tips()).anyMatch(t -> t.contains("goes like last month"));
+    }
+
+    @Test
+    void withoutLastMonthTheForecastUsesTheDailyPace() {
+        List<Expense> expenses = List.of(expense("Groceries", 1500, "Food", LocalDate.of(2026, 3, 2)));
+
+        InsightsResponse result = InsightsService.build(expenses, List.of(), TODAY);
+
+        // 1500 / 15 days * 31 days
+        assertThat(result.projectedMonthTotal()).isEqualTo(3100);
+        assertThat(result.tips()).anyMatch(t -> t.startsWith("At this pace"));
     }
 
     @Test
