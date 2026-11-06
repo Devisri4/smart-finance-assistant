@@ -42,6 +42,10 @@ client/    React frontend (dashboard, expenses, budgets, insights, AI assistant)
 
 ## AI Assistant
 
+| Spending breakdown with a chart | Budget suggestions, status and a refused delete |
+|---|---|
+| ![AI Assistant showing a spending breakdown and donut chart](docs/screenshots/assistant-breakdown.png) | ![AI Assistant suggesting budgets and refusing to delete expenses](docs/screenshots/assistant-budgets.png) |
+
 ```mermaid
 flowchart LR
     UI["React chat page (Vercel)"] -- "POST /assistant/chat + JWT" --> API["Spring Boot API (Render)"]
